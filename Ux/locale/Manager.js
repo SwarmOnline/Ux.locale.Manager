@@ -1,204 +1,260 @@
 Ext.define('Ux.locale.Manager', {
-    singleton : true,
+	singleton : true,
 
-    requires : [
-        'Ext.ComponentQuery',
-        'Ext.Ajax'
-    ],
+	requires : [
+		'Ext.ComponentQuery',
+		'Ext.Ajax'
+	],
 
-    uses : [
-        'Ext.data.Store'
-    ],
+	uses : [
+		'Ext.data.Store'
+	],
 
-    _ajaxConfig : {},
-    _beforeLoad : Ext.emptyFn,
-    _language   : 'en',
-    _loaded     : true,
-    _loadingInd : true,
-    _locale     : {},
-    _locales    : [
-        { abbr : 'en', text : 'English' },
-        { abbr : 'fr', text : 'French'  }
-    ],
-    _tpl        : '',
-    _type       : 'script',
+	_ajaxConfig   : {},
+	_beforeLoad   : Ext.emptyFn,
+	_language     : 'en',
+	_loaded       : true,
+	_loadingInd   : true,
+	_locale       : {},
+	_locales      : [
+		{ abbr : 'en', text : 'English' },
+		{ abbr : 'fr', text : 'French'  }
+	],
+	_tpl          : '',
+	_frameworkTpl : '',
+	_type         : 'script',
 
-    _decoder : function(options, success, response) {
-        var text = response.responseText;
+	_decoder : function(options, success, response) {
+		var text = response.responseText;
 
-        return Ext.decode(text);
-    },
+		return Ext.decode(text);
+	},
 
-    _callback : function() {
-        this.applyLocales();
-    },
+	_callback : function() {
+		this.applyLocales();
+	},
 
-    init : function(callback) {
-        var me         = this,
-            type       = me._type,
-            lmCallback = me._callback,
-            method     = type === 'script' ? 'loadScriptTag' : 'loadAjaxRequest';
+	init : function(callback) {
+		var me         = this,
+			type       = me._type,
+			lmCallback = me._callback,
+			method     = type === 'script' ? 'loadScriptTag' : 'loadAjaxRequest';
 
-        if (typeof callback !== 'function') {
-            callback = Ext.emptyFn;
-        }
+		if (typeof callback !== 'function') {
+			callback = Ext.emptyFn;
+		}
 
-        callback = Ext.Function.createInterceptor(callback, lmCallback, me);
+		callback = Ext.Function.createInterceptor(callback, lmCallback, me);
 
-        me[method](callback);
-    },
+		me[method](callback);
+	},
 
-    loadAjaxRequest: function(callback) {
-        var me = this;
+	loadAjaxRequest: function(callback) {
+		var me = this;
 
-        me._loaded = false;
+		me._loaded = false;
 
-        me._beforeLoad();
+		me._beforeLoad();
 
-        var ajaxConfig = Ext.apply({}, me._ajaxConfig),
-            language   = me._language,
-            path       = me._tpl.replace('{locale}', language),
-            decoder    = me._decoder,
-            params     = ajaxConfig.params || {},
-            json;
+		var ajaxConfig = Ext.apply({}, me._ajaxConfig),
+			language   = me._language,
+			path       = me._tpl.replace('{locale}', language),
+			frameworkLangPath       = me._frameworkTpl.replace('{locale}', language),
+			decoder    = me._decoder,
+			params     = ajaxConfig.params || {},
+			json;
 
-        params.language = language;
+		params.language = language;
 
-        Ext.apply(ajaxConfig, {
-            params   : params,
-            url      : path,
-            callback : function(options, success, response) {
-                json       = decoder(options, success, response);
-                me._locale = json;
-                me._loaded = true;
+		// load Framework's language pack first then load the app's language file in the callback
+		Ext.Loader.injectScriptElement(frameworkLangPath, function(){
 
-                if (typeof callback == 'function') {
-                    Ext.Function.bind(callback, me, [me, options, success, response])();
-                }
-            }
-        });
+			Ext.apply(ajaxConfig, {
+				params   : params,
+				url      : path,
+				callback : function(options, success, response) {
+					json       = decoder(options, success, response);
+					me._locale = json;
+					me._loaded = true;
 
-        Ext.Ajax.request(ajaxConfig);
-    },
+					if (typeof callback == 'function') {
+						Ext.Function.bind(callback, me, [me, options, success, response])();
+					}
+				}
+			});
 
-    loadScriptTag : function() {
-        console.log('<script> support coming');
-    },
+			Ext.Ajax.request(ajaxConfig);
+		}, Ext.emptyFn, this);
 
-    setConfig : function(config) {
-        Ext.Object.each(config, function(key, value) {
-            this['_' + key] = value;
-        }, this);
+	},
 
-        return this;
-    },
+	loadScriptTag : function() {
+		console.log('<script> support coming');
+	},
 
-    applyLocales : function() {
-        var cmps     = Ext.ComponentQuery.query('component[enableLocale]'),
-            c        = 0,
-            cNum     = cmps.length,
-            language = this._language,
-            cmp;
+	setConfig : function(config) {
+		Ext.Object.each(config, function(key, value) {
+			this['_' + key] = value;
+		}, this);
 
-        for (; c < cNum; c++) {
-            cmp = cmps[c];
+		return this;
+	},
 
-            if (typeof cmp.setLocale == 'function') {
-                cmp.setLocale(language);
-            }
-        }
-    },
+	applyLocales : function() {
+		var cmps     = Ext.ComponentQuery.query('component[enableLocale]'),
+			c        = 0,
+			cNum     = cmps.length,
+			language = this._language,
+			cmp;
 
-    isLoaded : function() {
-        return this._loaded;
-    },
+		for (; c < cNum; c++) {
+			cmp = cmps[c];
 
-    get : function(key, defaultText) {
-        var me     = this,
-            locale = me._locale,
-            plural = key.indexOf('p:') == 0,
-            keys   = (plural ? key.substr(2) : key).split('.'),
-            k      = 0,
-            kNum   = keys.length,
-            res;
+			if (typeof cmp.setLocale == 'function') {
+				cmp.setLocale(language);
+			}
+		}
+	},
 
-        if (!me.isLoaded()) {
-            return defaultText;
-        }
+	isLoaded : function() {
+		return this._loaded;
+	},
 
-        for (; k < kNum; k++) {
-            key = keys[k];
+	get : function(key, defaultText) {
+		var me     = this,
+			locale = me._locale,
+			plural = key.indexOf('p:') == 0,
+			keys   = (plural ? key.substr(2) : key).split('.'),
+			k      = 0,
+			kNum   = keys.length,
+			res;
 
-            if (locale) {
-                locale = locale[key];
-            }
-        }
+		if (!me.isLoaded()) {
+			return defaultText;
+		}
 
-        res = locale || defaultText;
+		for (; k < kNum; k++) {
+			key = keys[k];
 
-        if (plural) {
-            return Ext.util.Inflector.pluralize(res);
-        } else {
-            return res;
-        }
-    },
+			if (locale) {
+				locale = locale[key];
+			}
+		}
 
-    getAvailable : function(simple) {
-        var locales = this._locales;
+		res = locale || defaultText;
 
-        if (simple) {
-            return locales;
-        } else {
-            return new Ext.data.Store({
-                fields : ['abbr', 'text'],
-                data   : locales
-            });
-        }
-    },
+		if (plural) {
+			return Ext.util.Inflector.pluralize(res);
+		} else {
+			return res;
+		}
+	},
 
-    updateLocale : function(locale) {
-        var me = this;
+	/**
+	 * Allows the lookup of multiple keys using an object literal. This is useful when needing to translate a number of
+	 * keys for merging into a Template's data object.
+	 * @method
+	 * @public
+	 * @param {Object} obj The object that will be translated. Possible formats:
+	 *                          {
+	 *                              labelOne: 'myPanel.myField.label',
+	 *                              labelTwo: 'myPanel.myFieldTwo.label'
+	 *                          } ...
+	 *
+	 *                          or
+	 *
+	 *                          {
+	 *                              labelOne: {
+	 *                                  key: 'myPanel.myField.label',
+	 *                                  defaultText: 'My Default Label'
+	 *                              },
+	 *                              labelTwo: {
+	 *                                  key: 'myPanel.myFieldTwo.label',
+	 *                                  defaultText: 'My Default Label'
+	 *                              } ...
+	 *                          }
+	 *
+	 * @return {Object} An object with the value for each key replaced with the translation. For example:
+	 *                      {
+	 *                          labelOne: 'First Name',
+	 *                          labelTwo: 'Last Name',
+	 *                          ...
+	 *                      }
+	 */
+	bulkGet: function(obj){
+		var localeKey,
+			defaultText;
 
-        me._language = locale;
+		Ext.Object.each(obj, function(key, val){
+			localeKey = val;
 
-        if (me._loadingInd) {
-            Ext.Viewport.setMasked({
-                xtype     : 'loadmask',
-                indicator : true,
-                message   : me.get('misc.loadingLocaleMsg', 'Loading...')
-             });
-        }
+			if(Ext.isObject(val)){
+				localeKey = val.key;
+				defaultText = val.defaultText;
+			}
 
-        me.init(function(mngr) {
-            if (me._loadingInd) {
-                Ext.Viewport.setMasked(false);
-            }
-        });
-    }, 
-    
-    getLanguage : function() {
-        return this._language;
-    },
+			obj[key] = this.get(localeKey, defaultText);
+		}, this);
 
-    isLocalable : function(me, config) {
-        if (!config) {
-            config = {};
-        }
+		return obj;
+	},
 
-        if (Ext.isObject(me.config.locales)) {
-            config.locales = me.config.locales;
-        }
+	getAvailable : function(simple) {
+		var locales = this._locales;
 
-        var locales      = config.locales      || me.locales      || ( me.getLocales      && me.getLocales()      ),
-            enableLocale = config.enableLocale || me.enableLocale || ( me.getEnableLocale && me.getEnableLocale() );
+		if (simple) {
+			return locales;
+		} else {
+			return new Ext.data.Store({
+				fields : ['abbr', 'text'],
+				data   : locales
+			});
+		}
+	},
 
-        if (Ext.isObject(locales) || enableLocale) {
-            Ext.apply(me, {
-                enableLocale : true,
-                locale       : this
-            });
-        }
+	updateLocale : function(locale) {
+		var me = this;
 
-        return config;
-    }
+		me._language = locale;
+
+		if (me._loadingInd) {
+			Ext.Viewport.setMasked({
+				xtype     : 'loadmask',
+				indicator : true,
+				message   : me.get('misc.loadingLocaleMsg', 'Loading...')
+			});
+		}
+
+		me.init(function(mngr) {
+			if (me._loadingInd) {
+				Ext.Viewport.setMasked(false);
+			}
+		});
+	},
+
+	getLanguage : function() {
+		return this._language;
+	},
+
+	isLocalable : function(me, config) {
+		if (!config) {
+			config = {};
+		}
+
+		if (Ext.isObject(me.config.locales)) {
+			config.locales = me.config.locales;
+		}
+
+		var locales      = config.locales      || me.locales      || ( me.getLocales      && me.getLocales()      ),
+			enableLocale = config.enableLocale || me.enableLocale || ( me.getEnableLocale && me.getEnableLocale() );
+
+		if (Ext.isObject(locales) || enableLocale) {
+			Ext.apply(me, {
+				enableLocale : true,
+				locale       : this
+			});
+		}
+
+		return config;
+	}
 });
