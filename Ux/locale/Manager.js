@@ -10,19 +10,18 @@ Ext.define('Ux.locale.Manager', {
 		'Ext.data.Store'
 	],
 
-	_ajaxConfig   : {},
-	_beforeLoad   : Ext.emptyFn,
-	_language     : 'en',
-	_loaded       : true,
-	_loadingInd   : true,
-	_locale       : {},
-	_locales      : [
-		{ abbr : 'en', text : 'English' },
-		{ abbr : 'fr', text : 'French'  }
-	],
-	_tpl          : '',
-	_frameworkTpl : '',
-	_type         : 'script',
+    _ajaxConfig : {},
+    _beforeLoad : Ext.emptyFn,
+    _language   : navigator.language.split('-')[0],
+    _loaded     : true,
+    _loadingInd : true,
+    _locale     : {},
+    _locales    : [
+        { abbr : 'en', text : 'English' },
+        { abbr : 'fr', text : 'French'  }
+    ],
+    _tpl        : '',
+    _type       : 'script',
 
 	_decoder : function(options, success, response) {
 		var text = response.responseText;
@@ -88,9 +87,9 @@ Ext.define('Ux.locale.Manager', {
 
 	},
 
-	loadScriptTag : function() {
-		console.log('<script> support coming');
-	},
+    loadScriptTag : function() {
+        console.log('<script/> support coming');
+    },
 
 	setConfig : function(config) {
 		Ext.Object.each(config, function(key, value) {
@@ -217,24 +216,24 @@ Ext.define('Ux.locale.Manager', {
 
 		me._language = locale;
 
-		if (me._loadingInd) {
-			Ext.Viewport.setMasked({
-				xtype     : 'loadmask',
-				indicator : true,
-				message   : me.get('misc.loadingLocaleMsg', 'Loading...')
-			});
-		}
+        if (me._loadingInd && Ext.Viewport.setMasked) {
+            Ext.Viewport.setMasked({
+                xtype     : 'loadmask',
+                indicator : true,
+                message   : me.get('misc.loadingLocaleMsg', 'Loading...')
+             });
+        }
 
-		me.init(function(mngr) {
-			if (me._loadingInd) {
-				Ext.Viewport.setMasked(false);
-			}
-		});
-	},
-
-	getLanguage : function() {
-		return this._language;
-	},
+        me.init(function(mngr) {
+            if (me._loadingInd && Ext.Viewport.setMasked) {
+                Ext.Viewport.setMasked(false);
+            }
+        });
+    }, 
+    
+    getLanguage : function() {
+        return this._language;
+    },
 
 	isLocalable : function(me, config) {
 		if (!config) {
